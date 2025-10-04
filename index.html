@@ -22,6 +22,11 @@ input, select{width:90%;padding:.4rem;margin:.3rem 0;border-radius:8px;border:no
 #loginBox{background:var(--card);padding:2rem;border-radius:12px;text-align:center;}
 #notification{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;padding:.7rem 1rem;border-radius:12px;display:none;}
 </style>
+
+<!-- Firebase Scripts -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js"></script>
+
 </head>
 <body>
 <div id="app">
@@ -75,16 +80,29 @@ window.onload = function(){
   const spendSelect=document.getElementById("spendSelect");
   const pointsInput=document.getElementById("pointsInput");
   const notification=document.getElementById("notification");
-  const storageKey="enovMembers";
 
-  let members=[
-    {name:"Kai", recruits:12, coins:250, level:1},
-    {name:"Spaz", recruits:20, coins:250, level:1},
-    {name:"Bob", recruits:5, coins:250, level:1}
-  ];
+  // Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyB-RGaKfSNNRRUMLnKMqdZaFjos_Gmcdp8",
+    authDomain: "enovclanadmin.firebaseapp.com",
+    databaseURL: "https://enovclanadmin.firebaseio.com",
+    projectId: "enovclanadmin",
+    storageBucket: "enovclanadmin.appspot.com",
+    messagingSenderId: "1234567890",
+    appId: "1:1234567890:web:abcdef123456"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-  // Load saved members
-  if(localStorage.getItem(storageKey)) members=JSON.parse(localStorage.getItem(storageKey));
+  let members = [];
+
+  const membersRef = db.ref('members');
+
+  // Listen for changes from Firebase
+  membersRef.on('value', snapshot => {
+    members = snapshot.val() || [];
+    renderMembers();
+  });
 
   function renderMembers(){
     memberList.innerHTML="";
@@ -95,7 +113,6 @@ window.onload = function(){
       memberSelect.innerHTML+=`<option value="${i}">${m.name}</option>`;
       spendSelect.innerHTML+=`<option value="${i}">${m.name}</option>`;
     });
-    localStorage.setItem(storageKey, JSON.stringify(members));
   }
 
   function showNotification(msg){
@@ -104,11 +121,14 @@ window.onload = function(){
     setTimeout(()=>notification.style.display="none",2000);
   }
 
+  function updateMember(idx){
+    membersRef.child(idx).set(members[idx]);
+  }
+
   // LOGIN
   verifyBtn.onclick = function(){
     if(document.getElementById("accessCode").value==="enov2025"){
       loginOverlay.style.display="none";
-      renderMembers();
     } else {
       errorMsg.style.display="block";
       setTimeout(()=>errorMsg.style.display="none",2000);
@@ -121,7 +141,7 @@ window.onload = function(){
     let pts=parseInt(pointsInput.value);
     if(isNaN(pts)||pts<=0){alert("Enter a valid number"); return;}
     members[idx].coins+=pts;
-    renderMembers();
+    updateMember(idx);
     showNotification(`+${pts} coins to ${members[idx].name}`);
     pointsInput.value="";
   };
@@ -131,7 +151,7 @@ window.onload = function(){
     if(isNaN(pts)||pts<=0){alert("Enter a valid number"); return;}
     if(members[idx].coins>=pts){
       members[idx].coins-=pts;
-      renderMembers();
+      updateMember(idx);
       showNotification(`-${pts} coins from ${members[idx].name}`);
     } else alert("Not enough coins");
     pointsInput.value="";
@@ -143,16 +163,15 @@ window.onload = function(){
       let idx=spendSelect.value;
       let type=btn.dataset.type;
       if(type==="admin" && members[idx].coins>=1000){
-        members[idx].coins-=1000; members[idx].level+=1; renderMembers();
+        members[idx].coins-=1000; members[idx].level+=1; updateMember(idx);
         showNotification(`${members[idx].name} unlocked Admin!`);
       } else if(type==="tournament" && members[idx].coins>=500){
-        members[idx].coins-=500; renderMembers();
+        members[idx].coins-=500; updateMember(idx);
         showNotification(`${members[idx].name} is hosting a tournament!`);
       } else alert("Not enough coins");
     }
   });
 
-  renderMembers();
 };
 </script>
 </body>
